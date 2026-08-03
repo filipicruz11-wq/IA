@@ -10,7 +10,17 @@ st.set_page_config(
 )
 
 # Configuração da Chave da API (via st.secrets do Streamlit ou inserção direta)
-API_KEY = st.secrets.get("GEMINI_API_KEY", "COLOQUE_SUA_CHAVE_REAL_AQUI")
+import os
+
+# Tenta ler do Render (Environment Variables) ou do st.secrets local se existir
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    try:
+        API_KEY = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        API_KEY = "AQ.Ab8RN6J7hlSxskvyoamfFEhdzmk50LEu7Io423qALbzsgyNOWA"
+
+client = genai.Client(api_key=API_KEY)
 client = genai.Client(api_key=API_KEY)
 
 # Nomes dos arquivos de texto externos contendo os modelos
