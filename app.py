@@ -9,26 +9,24 @@ st.set_page_config(
     page_title="Sistema CEJUSC", page_icon="⚖️", layout="centered"
 )
 
-# Chave da API (Dica: No Render, o ideal é usar st.secrets, mas deixamos hardcoded ou via ambiente)
-API_KEY = "AQ.Ab8RN6J7hlSxskvyoamfFEhdzmk50LEu7Io423qALbzsgyNOWA"
+# Configuração da Chave da API (via st.secrets do Streamlit ou inserção direta)
+API_KEY = st.secrets.get("GEMINI_API_KEY", "COLOQUE_SUA_CHAVE_REAL_AQUI")
 client = genai.Client(api_key=API_KEY)
 
 # Nomes dos arquivos de texto externos contendo os modelos
 ARQUIVO_BANCO_MODELOS = "BANCO DE DADOS OBJETOS.TXT"
 ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.TXT"
 
-
 def carregar_arquivo_texto(nome_arquivo):
-  """Lê um arquivo de texto externo com os modelos criados pelo usuário."""
-  if os.path.exists(nome_arquivo):
-    try:
-      with open(nome_arquivo, "r", encoding="utf-8") as f:
-        return f.read()
-    except Exception as e:
-      return f"[Aviso: Erro ao ler o arquivo {nome_arquivo}: {e}]"
-  else:
-    return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado na pasta.]"
-
+    """Lê um arquivo de texto externo com os modelos criados pelo usuário."""
+    if os.path.exists(nome_arquivo):
+        try:
+            with open(nome_arquivo, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            return f"[Aviso: Erro ao ler o arquivo {nome_arquivo}: {e}]"
+    else:
+        return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado na pasta.]"
 
 # Prompts estruturados para o CEJUSC (Fase Pré-processual)
 PROMPTS = {
@@ -42,6 +40,7 @@ PROMPTS = {
     - Mantenha integralmente todos os nomes, datas, valores, endereços e matrículas.
     - Organize débitos/bens em listas alfabéticas (a, b, c).
     """,
+    
     "2": """
     Você é um assistente especializado na redação de CERTIDÕES PROCESSUAIS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -52,6 +51,7 @@ PROMPTS = {
     - Mantenha datas, prazos, nomes e documentos informados.
     - Finalize rigorosamente com a expressão: "CERTIFICO e dou fé."
     """,
+    
     "3": """
     Você é um assistente especializado na redação de MINUTAS DE SENTENÇA E HOMOLOGAÇÕES para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -62,6 +62,7 @@ PROMPTS = {
     - Utilize a estrutura formal (Relatório sucinto, Fundamentação e Dispositivo).
     - Para homologação de acordo, utilize o Art. 487, III, 'b' do CPC como base legal.
     """,
+    
     "4": """
     Você é um assistente especializado na redação de DESPACHOS E DECISÕES INTERLOCUTÓRIAS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -71,6 +72,7 @@ PROMPTS = {
     - NÃO adicione saudações ou explicações da IA.
     - Mantenha tom imperativo e estrutura clara de determinações (1. Designe-se pauta; 2. Intimem-se...).
     """,
+    
     "5": """
     Você é um assistente especializado em REDAÇÃO DE E-MAILS INSTITUCIONAIS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -81,6 +83,7 @@ PROMPTS = {
     - Na primeira linha do texto gerado, escreva diretamente: Assunto: [Título do E-mail]
     - Siga imediatamente com o vocativo (ex: Prezado Doutor Fernando,), o corpo do e-mail bem formatado e o encerramento com a assinatura institucional.
     """,
+    
     "6": """
     Você é um assistente especializado em NOTIFICAÇÕES VIA WHATSAPP para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -91,15 +94,17 @@ PROMPTS = {
     - Crie um texto fluido, direto, amigável e fácil de ler no celular.
     - Termine pedindo a confirmação de leitura da parte.
     """,
+    
     "7": """
     Você é um assistente especialista de consulta e esclarecimento de DÚVIDAS GERAIS.
     REGRAS DE SAÍDA E FORMATAÇÃO:
     - Responda à pergunta ou dúvida formulada sobre QUALQUER assunto trazido pelo usuário.
     - Forneça explicações objetivas, claras, precisas e bem fundamentadas.
-    - Tenha em mente que no CEJUSC os termos corretos para das partes são Reclamante(s) e Reclamado(a)(s) (âmbito pré-processual).
+    - Tenha em mente que no CEJUSC os termos corretos para as partes são Reclamante(s) e Reclamado(a)(s) (âmbito pré-processual).
     - NÃO use símbolos pesados de markdown como asteriscos (** ou *). Mantendo texto limpo e de fácil leitura.
     - Mantenha tom prestativo, profissional e direto ao ponto.
     """,
+    
     "8": """
     Você é um assistente especializado na redação e estruturação de TERMOS DE AUDIÊNCIA (Conciliação ou Mediação) para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -109,6 +114,7 @@ PROMPTS = {
     - INSTRUÇÃO DE MODELO: Analise o Banco de Dados de Termos fornecido abaixo. Se o caso trazido pelo usuário se encaixar em algum deles, utilize a estrutura daquele modelo preenchendo-o com os dados concretos fornecidos. Caso nenhum modelo do arquivo se adeque perfeitamente, faça a estruturação impecável do termo.
     - Corrija problemas gramaticais e mantenha a rigidez técnica e formal exigida nos atos processuais de audiência.
     """,
+    
     "9": """
     Você é um revisor de textos. Sua tarefa é EXCLUSIVAMENTE corrigir a gramática, ortografia, pontuação e clareza do texto enviado pelo usuário, preservando inteiramente a característica, o formato e o estilo original do texto (seja ele um bilhete, e-mail, anotação ou mensagem).
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -116,6 +122,7 @@ PROMPTS = {
     - OBRIGATÓRIO: Garanta que todas as referências às partes estejam estritamente como Reclamante(s) e Reclamado(a)(s) quando aplicável, vedando termos como Requerente/Requerido.
     - Logo abaixo, insira um relatório bem simples e curto (com um título simples, sem enfeites) listando em poucas palavras o que foi corrigido (ex: correção de pontuação, concordância e ajustes de digitação).
     """,
+    
     "10": """
     Você é um assistente objetivo para consulta rápida de documentos no atendimento do CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -127,53 +134,41 @@ PROMPTS = {
       4. TAXA JUDICIÁRIA E GRATUIDADE DE JUSTIÇA: Verificar incidência de taxa. Se houver pedido de gratuidade, exigir: holerites, carteira de trabalho (CTPS), CTPS com baixa do último registro (se desempregado) e extratos bancários dos últimos 3 meses.
     - NÃO use símbolos de markdown como asteriscos (** ou *). Mantenha o texto limpo.
     - Utilize sempre os termos corretos Reclamante(s) e Reclamado(a)(s).
-    """,
+    """
 }
 
-
 def processar_com_gemini(texto_bruto, opcao_menu):
-  prompt_sistema = PROMPTS.get(opcao_menu, PROMPTS["1"])
-
-  if opcao_menu == "1":
-    conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
-    prompt = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS (ARQUIVO EXTERNO):\n{conteudo_banco}\n\nPEDIDO OU RELATO DO CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
-  elif opcao_menu == "8":
-    conteudo_termos = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
-    prompt = f"{prompt_sistema}\n\nBANCO DE DADOS DE TERMOS (ARQUIVO EXTERNO):\n{conteudo_termos}\n\nDADOS DA AUDIÊNCIA OU CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
-  elif opcao_menu in ["7", "10"]:
-    prompt = (
-        f"{prompt_sistema}\n\nCASO OU DÚVIDA INFORMADA:\n{texto_bruto}"
-    )
-  else:
-    prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
-
-  modelos = [
-      "gemini-flash-latest",
-      "gemini-2.0-flash-lite",
-      "gemini-flash-lite-latest",
-  ]
-
-  for modelo in modelos:
-    for _ in range(3):
-      try:
-        response = client.models.generate_content(model=modelo, contents=prompt)
-        return response.text
-      except errors.APIError as e:
-        if e.code in [503, 429]:
-          time.sleep(2)
-        else:
-          break
-  raise Exception("Servidores indisponíveis no momento. Tente novamente.")
-
+    prompt_sistema = PROMPTS.get(opcao_menu, PROMPTS["1"])
+    
+    if opcao_menu == "1":
+        conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
+        prompt = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS (ARQUIVO EXTERNO):\n{conteudo_banco}\n\nPEDIDO OU RELATO DO CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
+    elif opcao_menu == "8":
+        conteudo_termos = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
+        prompt = f"{prompt_sistema}\n\nBANCO DE DADOS DE TERMOS (ARQUIVO EXTERNO):\n{conteudo_termos}\n\nDADOS DA AUDIÊNCIA OU CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
+    elif opcao_menu in ["7", "10"]:
+        prompt = f"{prompt_sistema}\n\nCASO OU DÚVIDA INFORMADA:\n{texto_bruto}"
+    else:
+        prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
+    
+    modelos = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    for modelo in modelos:
+        for _ in range(3):
+            try:
+                response = client.models.generate_content(model=modelo, contents=prompt)
+                return response.text
+            except errors.APIError as e:
+                if e.code in [503, 429]:
+                    time.sleep(2)
+                else:
+                    break
+    raise Exception("Servidores indisponíveis no momento. Verifique sua chave de API.")
 
 # Interface Web com Streamlit
 st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
-st.write(
-    "Selecione o tipo de documento ou consulta, insira os dados e clique em"
-    " processar."
-)
+st.write("Selecione o tipo de documento ou consulta, insira os dados e clique em processar.")
 
-# Menu de Opções
 opcao_escolhida = st.selectbox(
     "Escolha o tipo de documento ou consulta:",
     (
@@ -186,26 +181,22 @@ opcao_escolhida = st.selectbox(
         "7 - Dúvidas Gerais / Esclarecimentos",
         "8 - Termo de Audiência",
         "9 - Correção e Melhoria de Redação",
-        "10 - Orientações de Documentos para Atendimento",
-    ),
+        "10 - Orientações de Documentos para Atendimento"
+    )
 )
 
-# Extrai apenas o número da opção (ex: "1" de "1 - Relato de Caso")
 opcao = opcao_escolhida.split(" - ")[0]
 
-# Campo de texto para entrada
-texto_usuario = st.text_area(
-    "Informe o caso, texto ou dúvida abaixo:", height=150
-)
+texto_usuario = st.text_area("Informe o caso, texto ou dúvida abaixo:", height=150)
 
 if st.button("Processar com IA", type="primary"):
-  if not texto_usuario.strip():
-    st.warning("⚠️ Por favor, insira algum texto antes de processar.")
-  else:
-    with st.spinner("Processando com a IA, aguarde um instante..."):
-      try:
-        resultado = processar_com_gemini(texto_usuario, opcao)
-        st.subheader("Resultado da Análise:")
-        st.code(resultado, language="markdown")
-      except Exception as e:
-        st.error(f"Erro ao processar: {e}")
+    if not texto_usuario.strip():
+        st.warning("⚠️ Por favor, insira algum texto antes de processar.")
+    else:
+        with st.spinner("Processando com a IA, aguarde um instante..."):
+            try:
+                resultado = processar_com_gemini(texto_usuario, opcao)
+                st.subheader("Resultado da Análise:")
+                st.code(resultado, language="markdown")
+            except Exception as e:
+                st.error(f"Erro ao processar: {e}")
