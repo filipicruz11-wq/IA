@@ -4,54 +4,110 @@ import streamlit as st
 from google import genai
 from google.genai import errors
 
-# Configuração da página do Streamlit para ocupar a LARGURA TOTAL (wide)
+# Configuração da página para ocupar a tela inteira
 st.set_page_config(
     page_title="IA DO CEJUSC", 
     page_icon="⚖️", 
     layout="wide"
 )
 
-# Estilização CSS personalizada para um visual moderno e fluido
+# Estilização CSS Profissional (Design Corporativo Jurídico)
 st.markdown("""
     <style>
-    /* Estilização do cabeçalho principal */
-    .main-header {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #1E3A8A;
-        margin-bottom: 0.5rem;
+    /* Fundo geral da aplicação */
+    .stApp {
+        background-color: #F8FAFC;
     }
     
-    .sub-header {
-        font-size: 1rem;
-        color: #4B5563;
-        margin-bottom: 2rem;
+    /* Topo / Header Institucional */
+    .header-container {
+        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .header-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #FFFFFF !important;
+    }
+    .header-subtitle {
+        font-size: 0.95rem;
+        color: #93C5FD;
+        margin-top: 4px;
     }
 
-    /* Ajuste para justificativa e expansão do texto retornado */
-    textarea {
+    /* Cards/Containers do formulário */
+    div[data-testid="stVerticalBlock"] > div {
+        border-radius: 10px;
+    }
+
+    /* Personalização dos rótulos de entrada */
+    .stSelectbox label, .stTextArea label {
         font-size: 0.95rem !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-        line-height: 1.6 !important;
-        text-align: justify !important;
+        font-weight: 600 !important;
+        color: #1E293B !important;
     }
 
-    /* Melhora visual dos botões */
-    .stButton>button {
-        width: 100%;
+    /* Estilização das caixas de texto de entrada */
+    .stTextArea textarea {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+        font-size: 0.95rem !important;
+        color: #0F172A !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    }
+    .stTextArea textarea:focus {
+        border-color: #2563EB !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+    }
+
+    /* Botão Principal */
+    .stButton > button {
+        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1.5rem !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3) !important;
+        width: 100% !important;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
+        box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.4) !important;
+        transform: translateY(-1px);
+    }
+
+    /* Estilo de "Papel Oficial" para a área de resultado */
+    .document-paper {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-left: 5px solid #2563EB;
         border-radius: 8px;
-        height: 3em;
-        font-weight: 600;
-        font-size: 1rem;
+        padding: 1.5rem;
+        font-family: 'Georgia', 'Times New Roman', serif;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        color: #1E293B;
+        text-align: justify;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        white-space: pre-wrap;
+        margin-top: 0.5rem;
     }
 
-    /* Espaçamento elegante das seções */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        padding-left: 3rem;
-        padding-right: 3rem;
-    }
+    /* Rodapé e ajustes gerais */
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -67,20 +123,16 @@ if not API_KEY:
     st.error("⚠️ A chave GEMINI_API_KEY não foi encontrada. Configure-a na aba Environment do Render.")
     st.stop()
 
-# Inicialização do cliente oficial
 client = genai.Client(api_key=API_KEY)
 
-# Nomes dos arquivos de texto externos contendo os modelos
 ARQUIVO_BANCO_MODELOS = "BANCO DE DADOS OBJETOS.txt"
 ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.txt"
 
 def carregar_arquivo_texto(nome_arquivo):
-    """Procura e lê os arquivos .txt testando maiúsculas/minúsculas e pastas no Linux do Render."""
     diretorios = [
         os.getcwd(),
         os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd(),
     ]
-    
     for pasta in diretorios:
         caminho_direto = os.path.join(pasta, nome_arquivo)
         if os.path.exists(caminho_direto):
@@ -89,7 +141,6 @@ def carregar_arquivo_texto(nome_arquivo):
                     return f.read()
             except Exception as e:
                 return f"[Aviso: Erro ao ler {nome_arquivo}: {e}]"
-        
         if os.path.exists(pasta):
             for arq in os.listdir(pasta):
                 if arq.lower() == nome_arquivo.lower():
@@ -98,10 +149,8 @@ def carregar_arquivo_texto(nome_arquivo):
                             return f.read()
                     except Exception as e:
                         return f"[Aviso: Erro ao ler {arq}: {e}]"
-
     return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado na pasta.]"
 
-# Prompts estruturados para o CEJUSC (Fase Pré-processual)
 PROMPTS = {
     "1": """
     Você é um assistente especialista na redação de RELATOS DE CASOS para o CEJUSC.
@@ -113,7 +162,6 @@ PROMPTS = {
     - Mantenha integralmente todos os nomes, datas, valores, endereços e matrículas.
     - Organize débitos/bens em listas alfabéticas (a, b, c).
     """,
-    
     "2": """
     Você é um assistente especializado na redação de CERTIDÕES PROCESSUAIS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -124,7 +172,6 @@ PROMPTS = {
     - Mantenha datas, prazos, nomes e documentos informados.
     - Finalize rigorosamente com a expressão: "CERTIFICO e dou fé."
     """,
-    
     "3": """
     Você é um assistente especializado na redação de MINUTAS DE SENTENÇA E HOMOLOGAÇÕES para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -135,7 +182,6 @@ PROMPTS = {
     - Utilize a estrutura formal (Relatório sucinto, Fundamentação e Dispositivo).
     - Para homologação de acordo, utilize o Art. 487, III, 'b' do CPC como base legal.
     """,
-    
     "4": """
     Você é um assistente especializado na redação de DESPACHOS E DECISÕES INTERLOCUTÓRIAS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -145,7 +191,6 @@ PROMPTS = {
     - NÃO adicione saudações ou explicações da IA.
     - Mantenha tom imperativo e estrutura clara de determinações (1. Designe-se pauta; 2. Intimem-se...).
     """,
-    
     "5": """
     Você é um assistente especializado em REDAÇÃO DE E-MAILS INSTITUCIONAIS para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -156,7 +201,6 @@ PROMPTS = {
     - Na primeira linha do texto gerado, escreva diretamente: Assunto: [Título do E-mail]
     - Siga imediatamente com o vocativo (ex: Prezado Doutor Fernando,), o corpo do e-mail bem formatado e o encerramento com a assinatura institucional.
     """,
-    
     "6": """
     Você é um assistente especializado em NOTIFICAÇÕES VIA WHATSAPP para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -167,7 +211,6 @@ PROMPTS = {
     - Crie um texto fluido, direto, amigável e fácil de ler no celular.
     - Termine pedindo a confirmação de leitura da parte.
     """,
-    
     "7": """
     Você é um assistente especialista de consulta e esclarecimento de DÚVIDAS GERAIS.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -177,7 +220,6 @@ PROMPTS = {
     - NÃO use símbolos pesados de markdown como asteriscos (** ou *). Mantendo texto limpo e de fácil leitura.
     - Mantenha tom prestativo, profissional e direto ao ponto.
     """,
-    
     "8": """
     Você é um assistente especializado na redação e estruturação de TERMOS DE AUDIÊNCIA (Conciliação ou Mediação) para o CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -187,7 +229,6 @@ PROMPTS = {
     - INSTRUÇÃO DE MODELO: Analise o Banco de Dados de Termos fornecido abaixo. Se o caso trazido pelo usuário se encaixar em algum deles, utilize a estrutura daquele modelo preenchendo-o com os dados concretos fornecidos. Caso nenhum modelo do arquivo se adeque perfeitamente, faça a estruturação impecável do termo.
     - Corrija problemas gramaticais e mantenha a rigidez técnica e formal exigida nos atos processuais de audiência.
     """,
-    
     "9": """
     Você é um revisor de textos. Sua tarefa é EXCLUSIVAMENTE corrigir a gramática, ortografia, pontuação e clareza do texto enviado pelo usuário, preservando inteiramente a característica, o formato e o estilo original do texto (seja ele um bilhete, e-mail, anotação ou mensagem).
     REGRAS DE SAÍDA E FORMATAÇÃO:
@@ -195,14 +236,13 @@ PROMPTS = {
     - OBRIGATÓRIO: Garanta que todas as referências às partes estejam estritamente como Reclamante(s) e Reclamado(a)(s) quando aplicável, vedando termos como Requerente/Requerido.
     - Logo abaixo, insira um relatório bem simples e curto (com um título simples, sem enfeites) listando em poucas palavras o que foi corrigido (ex: correção de pontuação, concordância e ajustes de digitação).
     """,
-    
     "10": """
     Você é um assistente objetivo para consulta rápida de documentos no atendimento do CEJUSC.
     REGRAS DE SAÍDA E FORMATAÇÃO:
     - Retorne APENAS a lista direta de documentos e dados necessários para o caso informado, sem introduções ou conversas.
     - Estruture a resposta estritamente em tópicos limpos:
       1. DOCUMENTOS PESSOAIS DO(A) RECLAMANTE: Documento com foto (RG/CPF ou CNH) e comprovante de residência.
-      2. DOCUMENTOS ESPECÍFICOS DO CASO: Listar de forma direta o que é exigido para o assunto informado. Regra obrigatória: se houver partilha ou discussão sobre propriedade de bem imóvel, além dos títulos (escritura, matrícula, contrato, etc.), exigir obrigatoriamente o valor venal e o valor de mercado. Se houver veículo, além do CRVL, exigir obrigatoriamente o valor da tabela FIPE.
+      2. DOCUMENTOS ESPECÍFICOS DO CASO: Listar de forma direta o que é exigido para o assunto informado. Regra obrigatoria: se houver partilha ou discussão sobre propriedade de bem imóvel, além dos títulos (escritura, matrícula, contrato, etc.), exigir obrigatoriamente o valor venal e o valor de mercado. Se houver veículo, além do CRVL, exigir obrigatoriamente o valor da tabela FIPE.
       3. DADOS DO(A) RECLAMADO(A): Nome completo, endereço correto e telefone de contato (indispensáveis).
       4. TAXA JUDICIÁRIA E GRATUIDADE DE JUSTIÇA: Verificar incidência de taxa. Se houver pedido de gratuidade, exigir: holerites, carteira de trabalho (CTPS), CTPS com baixa do último registro (se desempregado) e extratos bancários dos últimos 3 meses.
     - NÃO use símbolos de markdown como asteriscos (** ou *). Mantenha o texto limpo.
@@ -212,7 +252,6 @@ PROMPTS = {
 
 def processar_com_gemini(texto_bruto, opcao_menu):
     prompt_sistema = PROMPTS.get(opcao_menu, PROMPTS["1"])
-    
     if opcao_menu == "1":
         conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
         prompt = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS (ARQUIVO EXTERNO):\n{conteudo_banco}\n\nPEDIDO OU RELATO DO CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
@@ -225,7 +264,6 @@ def processar_com_gemini(texto_bruto, opcao_menu):
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
     modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
-    
     for modelo in modelos:
         for _ in range(3):
             try:
@@ -238,43 +276,68 @@ def processar_com_gemini(texto_bruto, opcao_menu):
                     break
     raise Exception("Servidores indisponíveis no momento. Tente novamente.")
 
-# --- INTERFACE WEB MODERNA E EXPANDIDA ---
-st.markdown('<div class="main-header">⚖️ IA DO CEJUSC</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Sistema Inteligente de Redação e Padronização Jurídica Pré-Processual</div>', unsafe_allow_html=True)
+# --- BARRA DE TOPO INSTITUCIONAL ---
+st.markdown("""
+    <div class="header-container">
+        <div class="header-title">⚖️ IA DO CEJUSC</div>
+        <div class="header-subtitle">Plataforma Inteligente de Redação e Padronização Jurídica Pré-Processual</div>
+    </div>
+""", unsafe_allow_html=True)
 
-# Seletor de opções ocupando toda a largura
-opcao_escolhida = st.selectbox(
-    "Selecione o tipo de documento ou consulta a ser gerado:",
-    (
-        "1 - Relato de Caso",
-        "2 - Certidão Processual",
-        "3 - Sentença / Homologação de Acordo",
-        "4 - Despacho / Decisão",
-        "5 - E-mail Institucional",
-        "6 - Mensagem para WhatsApp",
-        "7 - Dúvidas Gerais / Esclarecimentos",
-        "8 - Termo de Audiência",
-        "9 - Correção e Melhoria de Redação",
-        "10 - Orientações de Documentos para Atendimento"
+# --- DIVISÃO EM COLUNAS LADO A LADO (50% / 50%) ---
+col_esquerda, col_direita = st.columns([1, 1], gap="large")
+
+with col_esquerda:
+    st.subheader("📝 Dados de Entrada")
+    
+    opcao_escolhida = st.selectbox(
+        "Selecione o tipo de documento a ser gerado:",
+        (
+            "1 - Relato de Caso",
+            "2 - Certidão Processual",
+            "3 - Sentença / Homologação de Acordo",
+            "4 - Despacho / Decisão",
+            "5 - E-mail Institucional",
+            "6 - Mensagem para WhatsApp",
+            "7 - Dúvidas Gerais / Esclarecimentos",
+            "8 - Termo de Audiência",
+            "9 - Correção e Melhoria de Redação",
+            "10 - Orientações de Documentos para Atendimento"
+        )
     )
-)
+    opcao = opcao_escolhida.split(" - ")[0]
 
-opcao = opcao_escolhida.split(" - ")[0]
+    texto_usuario = st.text_area(
+        "Insira as informações do atendimento ou rascunho abaixo:",
+        height=280,
+        placeholder="Exemplo: Reclamante alugou a casa na Rua X e o Reclamado deve R$ 4.500,00 de aluguéis atrasados..."
+    )
 
-# Campo de texto expandido em largura total
-texto_usuario = st.text_area("Insira os dados brutos, relato do atendimento ou dúvida abaixo:", height=220)
+    btn_processar = st.button("✨ Gerar Documento Jurídico", type="primary")
 
-# Botão principal moderno
-if st.button("✨ Processar e Gerar Documento", type="primary"):
-    if not texto_usuario.strip():
-        st.warning("⚠️ Por favor, insira o texto ou dados do caso antes de processar.")
+with col_direita:
+    st.subheader("📄 Documento Gerado")
+    
+    # Inicialização do estado de resultado
+    if "resultado_texto" not in st.session_state:
+        st.session_state.resultado_texto = ""
+
+    if btn_processar:
+        if not texto_usuario.strip():
+            st.warning("⚠️ Insira o texto ou relato antes de clicar em gerar.")
+        else:
+            with st.spinner("Estruturando o documento com base nas normas do CEJUSC..."):
+                try:
+                    st.session_state.resultado_texto = processar_com_gemini(texto_usuario, opcao)
+                except Exception as e:
+                    st.error(f"Erro ao processar: {e}")
+
+    # Exibição elegante do documento
+    if st.session_state.resultado_texto:
+        # Exibe como papel timbrado/documento formal
+        st.markdown(f'<div class="document-paper">{st.session_state.resultado_texto}</div>', unsafe_allow_html=True)
+        
+        # Área oculta para cópia direta em 1 clique
+        st.text_area("Copiar texto limpo:", value=st.session_state.resultado_texto, height=100, help="Selecione o texto acima ou copie aqui diretamente.")
     else:
-        with st.spinner("Processando com Inteligência Artificial, aguarde um instante..."):
-            try:
-                resultado = processar_com_gemini(texto_usuario, opcao)
-                st.markdown("---")
-                st.subheader("📋 Documento Gerado")
-                # Área do resultado ampla e com texto ajustado
-                st.text_area("Texto pronto para cópia e uso oficial:", value=resultado, height=450)
-            except Exception as e:
-                st.error(f"Erro ao processar o documento: {e}")
+        st.info("👈 Selecione o tipo de ato no painel à esquerda e clique em **'Gerar Documento Jurídico'**.")
