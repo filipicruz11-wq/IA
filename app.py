@@ -21,6 +21,7 @@ if not API_KEY:
     st.error("⚠️ A chave GEMINI_API_KEY não foi encontrada. Configure-a na aba Environment do Render.")
     st.stop()
 
+# Inicialização do cliente oficial
 client = genai.Client(api_key=API_KEY)
 
 # Nomes dos arquivos de texto externos contendo os modelos
@@ -161,19 +162,27 @@ def processar_com_gemini(texto_bruto, opcao_menu):
     else:
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
-    modelos = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    # Modelos mantidos oficialmente pela SDK google-genai
+    modelos = ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
     
+    erro_detalhado = None
     for modelo in modelos:
-        for _ in range(3):
+        for _ in range(2):
             try:
                 response = client.models.generate_content(model=modelo, contents=prompt)
-                return response.text
+                if response and response.text:
+                    return response.text
             except errors.APIError as e:
+                erro_detalhado = f"Erro API ({e.code}): {e.message}"
                 if e.code in [503, 429]:
                     time.sleep(2)
                 else:
                     break
-    raise Exception("Erro na comunicação com os servidores do Gemini. Verifique se a chave de API no Render está ativa.")
+            except Exception as e:
+                erro_detalhado = str(e)
+                break
+                
+    raise Exception(f"Não foi possível obter resposta. Detalhes: {erro_detalhado}")
 
 # Interface Web com Streamlit
 st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
