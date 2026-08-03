@@ -21,7 +21,7 @@ if not API_KEY:
     st.error("⚠️ A chave GEMINI_API_KEY não foi encontrada. Configure-a na aba Environment do Render.")
     st.stop()
 
-# Inicialização do cliente oficial
+# Inicialização do cliente
 client = genai.Client(api_key=API_KEY)
 
 # Nomes dos arquivos de texto externos contendo os modelos
@@ -30,9 +30,14 @@ ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.TXT"
 
 def carregar_arquivo_texto(nome_arquivo):
     """Lê um arquivo de texto externo com os modelos criados pelo usuário."""
-    if os.path.exists(nome_arquivo):
+    # Garante a busca do arquivo no diretório raiz atual no Linux/Render
+    caminho_local = os.path.join(os.path.dirname(__file__), nome_arquivo) if "__file__" in globals() else nome_arquivo
+    
+    alvo = caminho_local if os.path.exists(caminho_local) else nome_arquivo
+
+    if os.path.exists(alvo):
         try:
-            with open(nome_arquivo, "r", encoding="utf-8") as f:
+            with open(alvo, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()
         except Exception as e:
             return f"[Aviso: Erro ao ler o arquivo {nome_arquivo}: {e}]"
@@ -111,7 +116,7 @@ PROMPTS = {
     REGRAS DE SAÍDA E FORMATAÇÃO:
     - Responda à pergunta ou dúvida formulada sobre QUALQUER assunto trazido pelo usuário.
     - Forneça explicações objetivas, claras, precisas e bem fundamentadas.
-    - Tenha em mente que no CEJUSC os termos corretos para as partes são Reclamante(s) e Reclamado(a)(s) (âmbito pré-processual).
+    - Tenha em mente que no CEJUSC os termos corretos para das partes são Reclamante(s) e Reclamado(a)(s) (âmbito pré-processual).
     - NÃO use símbolos pesados de markdown como asteriscos (** ou *). Mantendo texto limpo e de fácil leitura.
     - Mantenha tom prestativo, profissional e direto ao ponto.
     """,
@@ -162,32 +167,23 @@ def processar_com_gemini(texto_bruto, opcao_menu):
     else:
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
-    # Priorizando os nomes exatos que funcionaram na sua máquina
-    modelos = [
-        "gemini-flash-latest", 
-        "gemini-2.0-flash-lite", 
-        "gemini-flash-lite-latest",
-        "gemini-1.5-flash"
-    ]
+    # Exatamente a mesma sequência de modelos do seu código local
+    modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
     
-    erro_detalhado = None
     for modelo in modelos:
-        try:
-            response = client.models.generate_content(model=modelo, contents=prompt)
-            if response and response.text:
+        for _ in range(3):
+            try:
+                response = client.models.generate_content(model=modelo, contents=prompt)
                 return response.text
-        except errors.APIError as e:
-            erro_detalhado = f"Erro API em '{modelo}' ({e.code}): {e.message}"
-            if e.code in [503, 429]:
-                time.sleep(2)
-        except Exception as e:
-            erro_detalhado = f"Erro em '{modelo}': {str(e)}"
-            
-    raise Exception(f"Não foi possível obter resposta. Detalhes: {erro_detalhado}")
+            except errors.APIError as e:
+                if e.code in [503, 429]:
+                    time.sleep(2)
+                else:
+                    break
+    raise Exception("Servidores indisponíveis no momento. Tente novamente.")
 
-# Interface Web com Streamlit
+# --- INTERFACE WEB STREAMLIT (IGUAL AO TERMINAL DO PC) ---
 st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
-st.write("Selecione o tipo de documento ou consulta, insira os dados e clique em processar.")
 
 opcao_escolhida = st.selectbox(
     "Escolha o tipo de documento ou consulta:",
@@ -207,16 +203,17 @@ opcao_escolhida = st.selectbox(
 
 opcao = opcao_escolhida.split(" - ")[0]
 
-texto_usuario = st.text_area("Informe o caso, texto ou dúvida abaixo:", height=150)
+texto_usuario = st.text_area("Informe o tipo de caso ou dúvida abaixo:", height=200)
 
 if st.button("Processar com IA", type="primary"):
     if not texto_usuario.strip():
-        st.warning("⚠️ Por favor, insira algum texto antes de processar.")
+        st.warning("⚠️ Nenhum texto foi inserido!")
     else:
         with st.spinner("Processando com a IA, aguarde um instante..."):
             try:
                 resultado = processar_com_gemini(texto_usuario, opcao)
-                st.subheader("Resultado da Análise:")
-                st.code(resultado, language="markdown")
+                st.subheader("================ RESULTADO DA ANÁLISE ================")
+                # Usando text_area para exibir o resultado em texto puro (fácil para copiar)
+                st.text_area("Resultado gerado:", value=resultado, height=350)
             except Exception as e:
                 st.error(f"Erro ao processar: {e}")
