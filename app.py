@@ -4,10 +4,56 @@ import streamlit as st
 from google import genai
 from google.genai import errors
 
-# Configuração da página do Streamlit
+# Configuração da página do Streamlit para ocupar a LARGURA TOTAL (wide)
 st.set_page_config(
-    page_title="Sistema CEJUSC", page_icon="⚖️", layout="centered"
+    page_title="IA DO CEJUSC", 
+    page_icon="⚖️", 
+    layout="wide"
 )
+
+# Estilização CSS personalizada para um visual moderno e fluido
+st.markdown("""
+    <style>
+    /* Estilização do cabeçalho principal */
+    .main-header {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #1E3A8A;
+        margin-bottom: 0.5rem;
+    }
+    
+    .sub-header {
+        font-size: 1rem;
+        color: #4B5563;
+        margin-bottom: 2rem;
+    }
+
+    /* Ajuste para justificativa e expansão do texto retornado */
+    textarea {
+        font-size: 0.95rem !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        line-height: 1.6 !important;
+        text-align: justify !important;
+    }
+
+    /* Melhora visual dos botões */
+    .stButton>button {
+        width: 100%;
+        border-radius: 8px;
+        height: 3em;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    /* Espaçamento elegante das seções */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        padding-left: 3rem;
+        padding-right: 3rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Captura segura da Chave de API
 API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -24,7 +70,7 @@ if not API_KEY:
 # Inicialização do cliente oficial
 client = genai.Client(api_key=API_KEY)
 
-# Nomes dos arquivos ajustados para a extensão exata em minúsculo (.txt)
+# Nomes dos arquivos de texto externos contendo os modelos
 ARQUIVO_BANCO_MODELOS = "BANCO DE DADOS OBJETOS.txt"
 ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.txt"
 
@@ -44,7 +90,6 @@ def carregar_arquivo_texto(nome_arquivo):
             except Exception as e:
                 return f"[Aviso: Erro ao ler {nome_arquivo}: {e}]"
         
-        # Busca insensível a maiúsculas/minúsculas caso haja alguma divergência de nome
         if os.path.exists(pasta):
             for arq in os.listdir(pasta):
                 if arq.lower() == nome_arquivo.lower():
@@ -179,7 +224,6 @@ def processar_com_gemini(texto_bruto, opcao_menu):
     else:
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
-    # Nomes dos modelos que funcionam perfeitamente na sua cota
     modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
     
     for modelo in modelos:
@@ -194,26 +238,13 @@ def processar_com_gemini(texto_bruto, opcao_menu):
                     break
     raise Exception("Servidores indisponíveis no momento. Tente novamente.")
 
-# --- INTERFACE WEB ---
-st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
+# --- INTERFACE WEB MODERNA E EXPANDIDA ---
+st.markdown('<div class="main-header">⚖️ IA DO CEJUSC</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Sistema Inteligente de Redação e Padronização Jurídica Pré-Processual</div>', unsafe_allow_html=True)
 
-# Teste de diagnóstico dos arquivos no topo
-banco_obj = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
-banco_ter = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
-
-with st.expander("🔍 Diagnóstico dos Arquivos do Banco de Dados no Render", expanded=False):
-    if "[Aviso:" in banco_obj:
-        st.error(f"❌ {banco_obj}")
-    else:
-        st.success(f"✅ '{ARQUIVO_BANCO_MODELOS}' carregado com sucesso! ({len(banco_obj)} caracteres)")
-        
-    if "[Aviso:" in banco_ter:
-        st.error(f"❌ {banco_ter}")
-    else:
-        st.success(f"✅ '{ARQUIVO_BANCO_TERMOS}' carregado com sucesso! ({len(banco_ter)} caracteres)")
-
+# Seletor de opções ocupando toda a largura
 opcao_escolhida = st.selectbox(
-    "Escolha o tipo de documento ou consulta:",
+    "Selecione o tipo de documento ou consulta a ser gerado:",
     (
         "1 - Relato de Caso",
         "2 - Certidão Processual",
@@ -230,16 +261,20 @@ opcao_escolhida = st.selectbox(
 
 opcao = opcao_escolhida.split(" - ")[0]
 
-texto_usuario = st.text_area("Informe o tipo de caso ou dúvida abaixo:", height=200)
+# Campo de texto expandido em largura total
+texto_usuario = st.text_area("Insira os dados brutos, relato do atendimento ou dúvida abaixo:", height=220)
 
-if st.button("Processar com IA", type="primary"):
+# Botão principal moderno
+if st.button("✨ Processar e Gerar Documento", type="primary"):
     if not texto_usuario.strip():
-        st.warning("⚠️ Nenhum texto foi inserido!")
+        st.warning("⚠️ Por favor, insira o texto ou dados do caso antes de processar.")
     else:
-        with st.spinner("Processando com a IA, aguarde um instante..."):
+        with st.spinner("Processando com Inteligência Artificial, aguarde um instante..."):
             try:
                 resultado = processar_com_gemini(texto_usuario, opcao)
-                st.subheader("================ RESULTADO DA ANÁLISE ================")
-                st.text_area("Resultado gerado:", value=resultado, height=350)
+                st.markdown("---")
+                st.subheader("📋 Documento Gerado")
+                # Área do resultado ampla e com texto ajustado
+                st.text_area("Texto pronto para cópia e uso oficial:", value=resultado, height=450)
             except Exception as e:
-                st.error(f"Erro ao processar: {e}")
+                st.error(f"Erro ao processar o documento: {e}")
