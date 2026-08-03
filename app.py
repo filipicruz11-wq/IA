@@ -21,29 +21,40 @@ if not API_KEY:
     st.error("⚠️ A chave GEMINI_API_KEY não foi encontrada. Configure-a na aba Environment do Render.")
     st.stop()
 
-# Inicialização do cliente
+# Inicialização do cliente oficial
 client = genai.Client(api_key=API_KEY)
 
-# Nomes dos arquivos de texto externos contendo os modelos
-ARQUIVO_BANCO_MODELOS = "BANCO DE DADOS OBJETOS.TXT"
-ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.TXT"
+# Nomes dos arquivos ajustados para a extensão exata em minúsculo (.txt)
+ARQUIVO_BANCO_MODELOS = "BANCO DE DADOS OBJETOS.txt"
+ARQUIVO_BANCO_TERMOS = "BANCO DE DADOS TERMOS.txt"
 
 def carregar_arquivo_texto(nome_arquivo):
-    """Lê um arquivo de texto externo com os modelos criados pelo usuário de forma compatível com o Render/Linux."""
-    diretorio_atual = os.path.dirname(os.path.abspath(__file__))
-    caminho_completo = os.path.join(diretorio_atual, nome_arquivo)
+    """Procura e lê os arquivos .txt testando maiúsculas/minúsculas e pastas no Linux do Render."""
+    diretorios = [
+        os.getcwd(),
+        os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd(),
+    ]
     
-    # Tenta pelo caminho absoluto e depois pelo relativo
-    alvo = caminho_completo if os.path.exists(caminho_completo) else nome_arquivo
+    for pasta in diretorios:
+        caminho_direto = os.path.join(pasta, nome_arquivo)
+        if os.path.exists(caminho_direto):
+            try:
+                with open(caminho_direto, "r", encoding="utf-8", errors="ignore") as f:
+                    return f.read()
+            except Exception as e:
+                return f"[Aviso: Erro ao ler {nome_arquivo}: {e}]"
+        
+        # Busca insensível a maiúsculas/minúsculas caso haja alguma divergência de nome
+        if os.path.exists(pasta):
+            for arq in os.listdir(pasta):
+                if arq.lower() == nome_arquivo.lower():
+                    try:
+                        with open(os.path.join(pasta, arq), "r", encoding="utf-8", errors="ignore") as f:
+                            return f.read()
+                    except Exception as e:
+                        return f"[Aviso: Erro ao ler {arq}: {e}]"
 
-    if os.path.exists(alvo):
-        try:
-            with open(alvo, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
-        except Exception as e:
-            return f"[Aviso: Erro ao ler o arquivo {nome_arquivo}: {e}]"
-    else:
-        return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado na pasta.]"
+    return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado na pasta.]"
 
 # Prompts estruturados para o CEJUSC (Fase Pré-processual)
 PROMPTS = {
@@ -168,6 +179,7 @@ def processar_com_gemini(texto_bruto, opcao_menu):
     else:
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
+    # Nomes dos modelos que funcionam perfeitamente na sua cota
     modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
     
     for modelo in modelos:
@@ -182,23 +194,23 @@ def processar_com_gemini(texto_bruto, opcao_menu):
                     break
     raise Exception("Servidores indisponíveis no momento. Tente novamente.")
 
-# --- INTERFACE E DIAGNÓSTICO DO RENDER ---
+# --- INTERFACE WEB ---
 st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
 
-# DIAGNÓSTICO DOS ARQUIVOS NO TOPO DA TELA
+# Teste de diagnóstico dos arquivos no topo
 banco_obj = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
 banco_ter = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
 
 with st.expander("🔍 Diagnóstico dos Arquivos do Banco de Dados no Render", expanded=False):
     if "[Aviso:" in banco_obj:
-        st.error(f"❌ Erro Modelos: {banco_obj}")
+        st.error(f"❌ {banco_obj}")
     else:
-        st.success(f"✅ 'BANCO DE DADOS OBJETOS.TXT' carregado! ({len(banco_obj)} caracteres)")
+        st.success(f"✅ '{ARQUIVO_BANCO_MODELOS}' carregado com sucesso! ({len(banco_obj)} caracteres)")
         
     if "[Aviso:" in banco_ter:
-        st.error(f"❌ Erro Termos: {banco_ter}")
+        st.error(f"❌ {banco_ter}")
     else:
-        st.success(f"✅ 'BANCO DE DADOS TERMOS.TXT' carregado! ({len(banco_ter)} caracteres)")
+        st.success(f"✅ '{ARQUIVO_BANCO_TERMOS}' carregado com sucesso! ({len(banco_ter)} caracteres)")
 
 opcao_escolhida = st.selectbox(
     "Escolha o tipo de documento ou consulta:",
