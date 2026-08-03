@@ -9,13 +9,17 @@ st.set_page_config(
     page_title="Sistema CEJUSC", page_icon="⚖️", layout="centered"
 )
 
-# Configuração da Chave da API (Busca no ambiente do Render ou usa a chave informada)
+# Captura segura da Chave de API via Variável de Ambiente do Render ou Streamlit Secrets
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
     try:
         API_KEY = st.secrets["GEMINI_API_KEY"]
     except Exception:
-        API_KEY = "AQ.Ab8RN6JfypXaDPRw6vJkbEjy6_dPS3woyzBpa0HY1yPcNDKxIg"
+        API_KEY = None
+
+if not API_KEY:
+    st.error("⚠️ A chave GEMINI_API_KEY não foi encontrada. Configure-a na aba Environment do Render.")
+    st.stop()
 
 client = genai.Client(api_key=API_KEY)
 
@@ -169,7 +173,7 @@ def processar_com_gemini(texto_bruto, opcao_menu):
                     time.sleep(2)
                 else:
                     break
-    raise Exception("Servidores indisponíveis no momento. Verifique sua chave de API.")
+    raise Exception("Erro na comunicação com os servidores do Gemini. Verifique se a chave de API no Render está ativa.")
 
 # Interface Web com Streamlit
 st.title("⚖️ Sistema de Apoio à Redação Jurídica - CEJUSC")
