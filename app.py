@@ -9,14 +9,16 @@ st.set_page_config(
     page_title="Sistema CEJUSC", page_icon="⚖️", layout="centered"
 )
 
-# Configuração segura da Chave da API
-# Dica: Se preferir garantir que funcione agora, substitua "COLOQUE_SUA_CHAVE_REAL_AQUI" pela sua chave real iniciada em "AIza..."
-API_KEY = os.environ.get("GEMINI_API_KEY")
-if not API_KEY:
-    try:
-        API_KEY = st.secrets["GEMINI_API_KEY"]
-    except Exception:
-        API_KEY = "COLOQUE_SUA_CHAVE_REAL_AQUI"
+# ---------------------------------------------------------
+# CONFIGURAÇÃO DA CHAVE DA API
+# Substitua "COLOQUE_SUA_CHAVE_REAL_AQUI" pela sua chave oficial
+# que começa com "AIza..." gerada no Google AI Studio.
+# ---------------------------------------------------------
+API_KEY = "COLOQUE_SUA_CHAVE_REAL_AQUI"
+
+if not API_KEY or API_KEY == "COLOQUE_SUA_CHAVE_REAL_AQUI":
+    st.error("⚠️ Atenção: Insira uma chave de API válida do Google Gemini no código do app.py para prosseguir.")
+    st.stop()
 
 client = genai.Client(api_key=API_KEY)
 
