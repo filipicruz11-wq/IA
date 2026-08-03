@@ -162,8 +162,13 @@ def processar_com_gemini(texto_bruto, opcao_menu):
     else:
         prompt = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
     
-    # Modelos com ampla cota gratuita mantidos pelo Google
-    modelos = ["gemini-1.5-flash", "gemini-2.0-flash"]
+    # Priorizando os nomes exatos que funcionaram na sua máquina
+    modelos = [
+        "gemini-flash-latest", 
+        "gemini-2.0-flash-lite", 
+        "gemini-flash-lite-latest",
+        "gemini-1.5-flash"
+    ]
     
     erro_detalhado = None
     for modelo in modelos:
@@ -172,11 +177,11 @@ def processar_com_gemini(texto_bruto, opcao_menu):
             if response and response.text:
                 return response.text
         except errors.APIError as e:
-            erro_detalhado = f"Erro API ({e.code}): {e.message}"
+            erro_detalhado = f"Erro API em '{modelo}' ({e.code}): {e.message}"
             if e.code in [503, 429]:
                 time.sleep(2)
         except Exception as e:
-            erro_detalhado = str(e)
+            erro_detalhado = f"Erro em '{modelo}': {str(e)}"
             
     raise Exception(f"Não foi possível obter resposta. Detalhes: {erro_detalhado}")
 
