@@ -50,6 +50,7 @@ st.markdown("""
         color: #0F172A !important;
     }
 
+    /* Estilo dos Botões */
     .stButton > button {
         background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
         color: white !important;
@@ -61,7 +62,7 @@ st.markdown("""
         width: 100% !important;
     }
 
-    /* Caixa única estilizada do Documento Gerado */
+    /* Caixa do Documento Gerado */
     div[data-testid="stTextArea"] textarea[aria-label="Documento Gerado:"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -108,40 +109,54 @@ def carregar_arquivo_texto(nome_arquivo):
     return f"[Aviso: O arquivo '{nome_arquivo}' não foi encontrado.]"
 
 PROMPTS = {
-    "1": """Você é um assistente especialista na redação de RELATOS DE CASOS para o CEJUSC. Retorne APENAS o texto final do relato sem símbolos markdown (como asteriscos). Mantenha sempre a nomenclatura Reclamante(s) e Reclamado(a)(s).""",
-    "2": """Você é um assistente especializado na redação de CERTIDÕES PROCESSUAIS para o CEJUSC. Finalize rigorosamente com 'CERTIFICO e dou fé.'""",
-    "3": """Você é um assistente especializado em MINUTAS DE SENTENÇA E HOMOLOGAÇÕES para o CEJUSC.""",
-    "4": """Você é um assistente especializado na redação de DESPACHOS E DECISÕES INTERLOCUTÓRIAS para o CEJUSC.""",
-    "5": """Você é um assistente especializado em REDAÇÃO DE E-MAILS INSTITUCIONAIS para o CEJUSC.""",
-    "6": """Você é um assistente especializado em NOTIFICAÇÕES VIA WHATSAPP para o CEJUSC.""",
+    "1": """Você é um assistente especialista na redação de RELATOS DE CASOS para o CEJUSC.
+    REGRAS DE SAÍDA E FORMATAÇÃO:
+    - Retorne APENAS o texto final do relato. NÃO inclua saudações, explicações, metadados ou tópicos informando as correções feitas.
+    - NÃO use símbolos de markdown como asteriscos (** ou *) para negrito. Devolva texto limpo pronto para colar em editores oficiais.
+    - OBRIGATÓRIO: Mantenha ou utilize sempre as nomenclaturas Reclamante(s) e Reclamado(a)(s). NUNCA substitua por Requerente(s) ou Requerido(a)(s).
+    - INSTRUÇÃO DE MODELO: Analise o Banco de Dados de Modelos Oficiais fornecido abaixo. Se o caso trazido pelo usuário se encaixar em algum deles, utilize a estrutura daquele modelo preenchendo-o com os dados concretos fornecidos. Caso nenhum modelo do arquivo se adeque perfeitamente, faça a estruturação, correção e adequação livre do relato de forma impecável.
+    - Mantenha integralmente todos os nomes, datas, valores, endereços e matrículas.
+    - Organize débitos/bens em listas alfabéticas (a, b, c).""",
+    
+    "2": """Você é um assistente especializado na redação de CERTIDÕES PROCESSUAIS para o CEJUSC. Retorne APENAS o texto formal sem asteriscos. Finalize rigorosamente com a expressão: 'CERTIFICO e dou fé.'""",
+    "3": """Você é um assistente especializado na redação de MINUTAS DE SENTENÇA E HOMOLOGAÇÕES para o CEJUSC. Retorne APENAS o texto final da minuta sem asteriscos. Utilize a estrutura formal (Relatório, Fundamentação e Dispositivo). Para homologação de acordo, utilize o Art. 487, III, 'b' do CPC.""",
+    "4": """Você é um assistente especializado na redação de DESPACHOS E DECISÕES INTERLOCUTÓRIAS para o CEJUSC. Retorne APENAS a minuta final sem asteriscos.""",
+    "5": """Você é um assistente especializado em REDAÇÃO DE E-MAILS INSTITUCIONAIS para o CEJUSC. Retorne APENAS o e-mail pronto para envio sem asteriscos.""",
+    "6": """Você é um assistente especializado em NOTIFICAÇÕES VIA WHATSAPP para o CEJUSC. Retorne APENAS a mensagem. UTILIZE A SINTAXE DO WHATSAPP (*texto em negrito*, _texto em itálico_).""",
     "7": """Você é um assistente especialista de consulta e esclarecimento de DÚVIDAS GERAIS.""",
-    "8": """Você é um assistente especializado na redação e estruturação de TERMOS DE AUDIÊNCIA para o CEJUSC.""",
+    "8": """Você é um assistente especializado na redação e estruturação de TERMOS DE AUDIÊNCIA para o CEJUSC. Retorne APENAS o texto formal do termo sem asteriscos.""",
     "9": """Você é um revisor de textos. Corrija a gramática e clareza preservando o estilo original.""",
     "10": """Você é um assistente objetivo para consulta rápida de documentos no atendimento do CEJUSC."""
 }
 
-def processar_com_gemini(conteudo_entrada, opcao_menu, eh_audio=False):
+def transcrever_audio(audio_bytes, mime_type):
+    """Função exclusiva para converter o áudio falado em texto."""
+    audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+    prompt = "Transcreva com máxima fidelidade o áudio a seguir para texto. Retorne APENAS a transcrição exata das palavras faladas, sem explicações ou comentários."
+    
+    modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
+    for modelo in modelos:
+        try:
+            response = client.models.generate_content(model=modelo, contents=[prompt, audio_part])
+            return response.text.strip()
+        except errors.APIError:
+            time.sleep(2)
+    raise Exception("Não foi possível transcrever o áudio no momento.")
+
+def processar_com_gemini(texto_bruto, opcao_menu):
+    """Função que gera o documento jurídico baseado no texto de entrada."""
     prompt_sistema = PROMPTS.get(opcao_menu, PROMPTS["1"])
     
-    if eh_audio:
-        # Formatação correta para envio de áudio no SDK google-genai
-        audio_part = types.Part.from_bytes(
-            data=conteudo_entrada["data"],
-            mime_type=conteudo_entrada["mime_type"]
-        )
-        prompt_completo = [
-            f"{prompt_sistema}\n\nINSTRUÇÃO: Escute o áudio gravado e extraia/estruture as informações para gerar o documento solicitado.",
-            audio_part
-        ]
+    if opcao_menu == "1":
+        conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
+        prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS (ARQUIVO EXTERNO):\n{conteudo_banco}\n\nPEDIDO OU RELATO DO CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
+    elif opcao_menu == "8":
+        conteudo_termos = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
+        prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE TERMOS (ARQUIVO EXTERNO):\n{conteudo_termos}\n\nDADOS DA AUDIÊNCIA OU CASO FORNECIDO PELO USUÁRIO:\n{texto_bruto}"
+    elif opcao_menu in ["7", "10"]:
+        prompt_completo = f"{prompt_sistema}\n\nCASO OU DÚVIDA INFORMADA:\n{texto_bruto}"
     else:
-        if opcao_menu == "1":
-            conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
-            prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS:\n{conteudo_banco}\n\nPEDIDO/RELATO:\n{conteudo_entrada}"
-        elif opcao_menu == "8":
-            conteudo_termos = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
-            prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE TERMOS:\n{conteudo_termos}\n\nDADOS DA AUDIÊNCIA:\n{conteudo_entrada}"
-        else:
-            prompt_completo = f"{prompt_sistema}\n\nTEXTO FORNECIDO:\n{conteudo_entrada}"
+        prompt_completo = f"{prompt_sistema}\n\nTEXTO BRUTO A SER PROCESSADO:\n{texto_bruto}"
 
     modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
     for modelo in modelos:
@@ -175,20 +190,34 @@ with col_esquerda:
     )
     opcao = opcao_escolhida.split(" - ")[0]
 
-    # Alternância entre Texto e Áudio
-    tipo_entrada = st.radio("Como prefere informar o caso?", ["✍️ Digitar Texto", "🎙️ Gravar Áudio"], horizontal=True)
+    # Inicialização do estado de memória para o texto digitado/transcrito
+    if "texto_entrada" not in st.session_state:
+        st.session_state.texto_entrada = ""
 
-    texto_usuario = ""
-    audio_usuario = None
+    # Área de gravação de áudio opcional
+    audio_usuario = st.audio_input("🎙️ Gravar relato falado (Opcional):")
+    
+    if audio_usuario is not None:
+        if st.button("📝 Converter Áudio em Texto"):
+            with st.spinner("Transcrevendo áudio para o campo de texto..."):
+                try:
+                    transcricao = transcrever_audio(audio_usuario.read(), audio_usuario.type)
+                    # Adiciona ou atualiza o texto na caixa de entrada
+                    if st.session_state.texto_entrada.strip():
+                        st.session_state.texto_entrada += f"\n{transcricao}"
+                    else:
+                        st.session_state.texto_entrada = transcricao
+                    st.success("Áudio transcrito com sucesso! Verifique o texto abaixo.")
+                except Exception as e:
+                    st.error(f"Erro na transcrição: {e}")
 
-    if tipo_entrada == "✍️ Digitar Texto":
-        texto_usuario = st.text_area(
-            "Insira as informações do atendimento ou rascunho abaixo:",
-            height=260,
-            placeholder="Exemplo: Reclamante relata que a parte Reclamada atrasou o aluguel..."
-        )
-    else:
-        audio_usuario = st.audio_input("Clique no microfone abaixo para gravar o relato:")
+    # Campo de Texto que recebe o ditado ou a digitação direta
+    st.session_state.texto_entrada = st.text_area(
+        "Insira ou edite as informações do atendimento/rascunho abaixo:",
+        value=st.session_state.texto_entrada,
+        height=260,
+        placeholder="Digite o relato aqui ou grave um áudio acima para transcrever..."
+    )
 
     btn_processar = st.button("✨ Gerar Documento Jurídico", type="primary")
 
@@ -199,22 +228,12 @@ with col_direita:
         st.session_state.resultado_texto = ""
 
     if btn_processar:
-        if tipo_entrada == "✍️ Digitar Texto" and not texto_usuario.strip():
-            st.warning("⚠️ Digite o relato antes de gerar.")
-        elif tipo_entrada == "🎙️ Gravar Áudio" and audio_usuario is None:
-            st.warning("⚠️ Grave um áudio antes de clicar em gerar.")
+        if not st.session_state.texto_entrada.strip():
+            st.warning("⚠️ Insira ou transcreva um texto nos Dados de Entrada antes de gerar.")
         else:
-            with st.spinner("Escutando/Processando informações e redigindo o documento..."):
+            with st.spinner("Estruturando o documento jurídico com base nas normas do CEJUSC..."):
                 try:
-                    if tipo_entrada == "🎙️ Gravar Áudio":
-                        audio_bytes = audio_usuario.read()
-                        st.session_state.resultado_texto = processar_com_gemini(
-                            {"mime_type": audio_usuario.type, "data": audio_bytes}, 
-                            opcao, 
-                            eh_audio=True
-                        )
-                    else:
-                        st.session_state.resultado_texto = processar_com_gemini(texto_usuario, opcao, eh_audio=False)
+                    st.session_state.resultado_texto = processar_com_gemini(st.session_state.texto_entrada, opcao)
                 except Exception as e:
                     st.error(f"Erro ao processar: {e}")
 
