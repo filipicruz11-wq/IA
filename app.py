@@ -43,11 +43,6 @@ st.markdown("""
         margin-top: 4px;
     }
 
-    /* Cards/Containers do formulário */
-    div[data-testid="stVerticalBlock"] > div {
-        border-radius: 10px;
-    }
-
     /* Personalização dos rótulos de entrada */
     .stSelectbox label, .stTextArea label {
         font-size: 0.95rem !important;
@@ -88,21 +83,17 @@ st.markdown("""
         transform: translateY(-1px);
     }
 
-    /* Estilo de "Papel Oficial" para a área de resultado */
-    .document-paper {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-left: 5px solid #2563EB;
-        border-radius: 8px;
-        padding: 1.5rem;
-        font-family: 'Georgia', 'Times New Roman', serif;
-        font-size: 1.05rem;
-        line-height: 1.7;
-        color: #1E293B;
-        text-align: justify;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        white-space: pre-wrap;
-        margin-top: 0.5rem;
+    /* Estilização da caixa do Documento Gerado (Única Caixa do lado direito) */
+    div[data-testid="stTextArea"] textarea[aria-label="Documento Gerado:"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-left: 6px solid #2563EB !important;
+        border-radius: 8px !important;
+        font-family: 'Georgia', 'Times New Roman', serif !important;
+        font-size: 1.05rem !important;
+        line-height: 1.7 !important;
+        color: #0F172A !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
     }
 
     /* Rodapé e ajustes gerais */
@@ -309,7 +300,7 @@ with col_esquerda:
 
     texto_usuario = st.text_area(
         "Insira as informações do atendimento ou rascunho abaixo:",
-        height=280,
+        height=320,
         placeholder="Exemplo: Reclamante alugou a casa na Rua X e o Reclamado deve R$ 4.500,00 de aluguéis atrasados..."
     )
 
@@ -318,7 +309,6 @@ with col_esquerda:
 with col_direita:
     st.subheader("📄 Documento Gerado")
     
-    # Inicialização do estado de resultado
     if "resultado_texto" not in st.session_state:
         st.session_state.resultado_texto = ""
 
@@ -332,12 +322,10 @@ with col_direita:
                 except Exception as e:
                     st.error(f"Erro ao processar: {e}")
 
-    # Exibição elegante do documento
-    if st.session_state.resultado_texto:
-        # Exibe como papel timbrado/documento formal
-        st.markdown(f'<div class="document-paper">{st.session_state.resultado_texto}</div>', unsafe_allow_html=True)
-        
-        # Área oculta para cópia direta em 1 clique
-        st.text_area("Copiar texto limpo:", value=st.session_state.resultado_texto, height=100, help="Selecione o texto acima ou copie aqui diretamente.")
-    else:
-        st.info("👈 Selecione o tipo de ato no painel à esquerda e clique em **'Gerar Documento Jurídico'**.")
+    # Caixa única estilizada com o resultado pronto
+    st.text_area(
+        "Documento Gerado:",
+        value=st.session_state.resultado_texto,
+        height=400,
+        placeholder="O documento pronto para cópia aparecerá aqui..."
+    )
