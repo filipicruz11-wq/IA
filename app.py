@@ -2,7 +2,7 @@ import time
 import os
 import streamlit as st
 from google import genai
-from google.genai import errors
+from google.genai import errors, types
 
 # Configuração da página
 st.set_page_config(
@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização CSS
+# Estilização CSS Profissional
 st.markdown("""
     <style>
     .stApp { background-color: #F8FAFC; }
@@ -36,7 +36,7 @@ st.markdown("""
         margin-top: 4px;
     }
 
-    .stSelectbox label, .stTextArea label, .stAudioInput label {
+    .stSelectbox label, .stTextArea label, .stAudioInput label, .stRadio label {
         font-size: 0.95rem !important;
         font-weight: 600 !important;
         color: #1E293B !important;
@@ -61,7 +61,7 @@ st.markdown("""
         width: 100% !important;
     }
 
-    /* Caixa do Documento Gerado */
+    /* Caixa única estilizada do Documento Gerado */
     div[data-testid="stTextArea"] textarea[aria-label="Documento Gerado:"] {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -123,16 +123,27 @@ PROMPTS = {
 def processar_com_gemini(conteudo_entrada, opcao_menu, eh_audio=False):
     prompt_sistema = PROMPTS.get(opcao_menu, PROMPTS["1"])
     
-    # Se for áudio, passamos o áudio e o prompt juntos no conteúdo
     if eh_audio:
+        # Formatação correta para envio de áudio no SDK google-genai
+        audio_part = types.Part.from_bytes(
+            data=conteudo_entrada["data"],
+            mime_type=conteudo_entrada["mime_type"]
+        )
         prompt_completo = [
             f"{prompt_sistema}\n\nINSTRUÇÃO: Escute o áudio gravado e extraia/estruture as informações para gerar o documento solicitado.",
-            conteudo_entrada # Arquivo de áudio gravado
+            audio_part
         ]
     else:
-        prompt_completo = f"{prompt_sistema}\n\nTEXTO/RELATO FORNECIDO:\n{conteudo_entrada}"
+        if opcao_menu == "1":
+            conteudo_banco = carregar_arquivo_texto(ARQUIVO_BANCO_MODELOS)
+            prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE MODELOS:\n{conteudo_banco}\n\nPEDIDO/RELATO:\n{conteudo_entrada}"
+        elif opcao_menu == "8":
+            conteudo_termos = carregar_arquivo_texto(ARQUIVO_BANCO_TERMOS)
+            prompt_completo = f"{prompt_sistema}\n\nBANCO DE DADOS DE TERMOS:\n{conteudo_termos}\n\nDADOS DA AUDIÊNCIA:\n{conteudo_entrada}"
+        else:
+            prompt_completo = f"{prompt_sistema}\n\nTEXTO FORNECIDO:\n{conteudo_entrada}"
 
-    modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite"]
+    modelos = ["gemini-flash-latest", "gemini-2.0-flash-lite", "gemini-flash-lite-latest"]
     for modelo in modelos:
         try:
             response = client.models.generate_content(model=modelo, contents=prompt_completo)
@@ -193,10 +204,9 @@ with col_direita:
         elif tipo_entrada == "🎙️ Gravar Áudio" and audio_usuario is None:
             st.warning("⚠️ Grave um áudio antes de clicar em gerar.")
         else:
-            with st.spinner("Processando informações e redigindo o documento..."):
+            with st.spinner("Escutando/Processando informações e redigindo o documento..."):
                 try:
                     if tipo_entrada == "🎙️ Gravar Áudio":
-                        # Lê os bytes do áudio gravado
                         audio_bytes = audio_usuario.read()
                         st.session_state.resultado_texto = processar_com_gemini(
                             {"mime_type": audio_usuario.type, "data": audio_bytes}, 
